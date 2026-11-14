@@ -35,15 +35,30 @@ describe("draw", () => {
   it("acha a única solução possível", () => {
     // ana só pode tirar bruno, bruno só carla, carla só ana
     const ids = ["ana", "bruno", "carla"];
-    const r = draw(ids, [["ana", "carla"], ["bruno", "ana"], ["carla", "bruno"]], seededRng(7));
+    const r = draw(
+      ids,
+      [
+        ["ana", "carla"],
+        ["bruno", "ana"],
+        ["carla", "bruno"],
+      ],
+      seededRng(7),
+    );
     expect(Object.fromEntries(r)).toEqual({ ana: "bruno", bruno: "carla", carla: "ana" });
   });
 
   it("erro quando é impossível", () => {
     const ids = ["ana", "bruno", "carla"];
-    expect(() => draw(ids, [["ana", "bruno"], ["ana", "carla"]], seededRng(1))).toThrow(
-      ImpossibleDrawError,
-    );
+    expect(() =>
+      draw(
+        ids,
+        [
+          ["ana", "bruno"],
+          ["ana", "carla"],
+        ],
+        seededRng(1),
+      ),
+    ).toThrow(ImpossibleDrawError);
   });
 
   it("erro com menos de 3 pessoas", () => {

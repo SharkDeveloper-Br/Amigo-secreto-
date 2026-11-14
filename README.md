@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Amigo Secreto 🎁
 
-## Getting Started
+Organize o amigo secreto sem cadastro: crie o grupo, coloque regras
+("casal não tira um ao outro"), sorteie e mande um link secreto para
+cada pessoa. Cada um vê só quem tirou e a lista de desejos do amigo.
 
-First, run the development server:
+- Visual: [`DESIGN.md`](DESIGN.md)
+- Desenho técnico: [`docs/plans/`](docs/plans)
+
+## Como funciona
+
+| Página | Quem usa | O que faz |
+|---|---|---|
+| `/` | organizador | cria o grupo com os nomes |
+| `/g/[token]` | organizador | regras, sortear, links de cada pessoa |
+| `/p/[token]` | participante | abre o presente, vê o amigo e a lista, escreve a própria lista |
+
+O organizador não vê quem tirou quem. Mas ele tem os links de todos,
+então em teoria poderia abrir o link de alguém. Escolha um organizador
+de confiança (ou que também participe e não espie 😉).
+
+## Stack
+
+Next.js 16 (App Router, Server Actions) · TypeScript · Tailwind 4 ·
+Prisma 7 + Postgres · Vitest.
+
+## Rodar local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env          # coloque a URL do seu Postgres
+npm install
+npx prisma migrate dev
+npm run dev                   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Testes (precisam de um Postgres de teste):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+DATABASE_URL_TEST="postgresql://app:app@localhost:5432/amigo_test" npm test
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy na Vercel
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Crie um banco Postgres grátis (Neon ou Supabase) e copie a URL.
+2. Importe este repositório na Vercel.
+3. Em **Settings → Environment Variables**, adicione `DATABASE_URL`.
+4. Em **Build Command**, use: `npx prisma migrate deploy && next build`.
+5. Deploy. Pronto.

@@ -116,9 +116,9 @@ describe("sorteio", () => {
     expect(["Carla", "Davi"]).toContain(ana.friend!.name);
 
     await expect(addParticipant(adminToken, "Eva")).rejects.toThrow(AppError);
-    await expect(
-      addExclusion(adminToken, byName.Carla.id, byName.Davi.id, false),
-    ).rejects.toThrow(AppError);
+    await expect(addExclusion(adminToken, byName.Carla.id, byName.Davi.id, false)).rejects.toThrow(
+      AppError,
+    );
   });
 
   it("todos recebem exatamente uma vez", async () => {

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "format": "prettier --write src"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -25,15 +26,16 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
+    "@types/pg": "^8.11.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "prettier": "^3.10.1",
+    "prisma": "7.10.1",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
-    "vitest": "3.2.4",
-    "prisma": "7.10.1",
-    "@types/pg": "^8.11.0",
-    "dotenv": "^17.0.0"
+    "vitest": "3.2.4"
   }
 }
