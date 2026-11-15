@@ -55,7 +55,10 @@ async function Participant({
         <Card>
           <div className="flex items-start gap-3">
             <Hourglass className="mt-1 size-5 shrink-0 text-gold-text" aria-hidden />
-            <p>O sorteio ainda não rolou. Quando rolar, volta neste link pra ver quem você tirou. Enquanto isso, pode mexer na sua lista de desejos.</p>
+            <p>
+              O sorteio ainda não rolou. Quando rolar, volta neste link pra ver quem você tirou.
+              Enquanto isso, pode mexer na sua lista de desejos.
+            </p>
           </div>
         </Card>
       )}

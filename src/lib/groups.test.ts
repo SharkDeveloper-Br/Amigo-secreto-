@@ -276,17 +276,25 @@ describe("convite", () => {
     expect(admin.participants.find((p) => p.name === "Fábio")!.phone).toBe("5511987654321");
   });
 
-  it("tudo é obrigatório", async () => {
+  it("nome e desejo obrigatórios; telefone inválido recusa", async () => {
     const { view } = await novoGrupo();
-    for (const faltando of [
+    for (const ruim of [
       { ...dados, name: " " },
-      { ...dados, phone: "" },
       { ...dados, wishlist: "  " },
       { ...dados, phone: "123" },
     ]) {
-      await expect(joinGroup(view.inviteToken, faltando)).rejects.toThrow(AppError);
+      await expect(joinGroup(view.inviteToken, ruim)).rejects.toThrow(AppError);
     }
     expect((await getInviteView(view.inviteToken))!.count).toBe(4);
+  });
+
+  it("telefone é opcional (e vários podem entrar sem)", async () => {
+    const { adminToken, view } = await novoGrupo();
+    await joinGroup(view.inviteToken, { ...dados, phone: "" });
+    await joinGroup(view.inviteToken, { name: "Gil", wishlist: "Meia" });
+    const admin = (await getAdminView(adminToken))!;
+    expect(admin.participants.find((p) => p.name === "Fábio")!.phone).toBeNull();
+    expect(admin.participants.find((p) => p.name === "Gil")!.phone).toBeNull();
   });
 
   it("não entra com nome ou telefone repetido", async () => {

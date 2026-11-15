@@ -164,7 +164,7 @@ function InviteCard({
   groupName: string;
   onCopy: (t: string) => void;
 }) {
-  const message = `Bora participar do amigo secreto "${groupName}"? 🎁 Entra aqui, coloca seu nome, WhatsApp e o que quer ganhar: ${link}`;
+  const message = `Bora participar do amigo secreto "${groupName}"? 🎁 Entra aqui, coloca seu nome e o que quer ganhar: ${link}`;
   return (
     <Card className="border-gold">
       <div className="flex items-start gap-3">
@@ -174,8 +174,8 @@ function InviteCard({
         <div className="min-w-0 flex-1">
           <SectionTitle>Link de convite</SectionTitle>
           <p className="mt-1 text-[15px] text-muted">
-            Manda no grupo da família ou dos amigos. Cada um entra com nome, WhatsApp e o que quer
-            ganhar.
+            Manda no grupo da família ou dos amigos. Cada um entra com nome e o que quer ganhar
+            (WhatsApp é opcional).
           </p>
         </div>
       </div>

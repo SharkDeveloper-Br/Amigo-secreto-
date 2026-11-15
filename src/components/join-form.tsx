@@ -19,7 +19,7 @@ export function JoinForm({ inviteToken }: { inviteToken: string }) {
     const e: typeof errors = {};
     if (!name.trim()) e.name = "Coloca seu nome.";
     try {
-      if (!normalizePhone(phone)) e.phone = "Coloca seu WhatsApp.";
+      normalizePhone(phone);
     } catch (err) {
       e.phone = (err as Error).message;
     }
@@ -63,7 +63,7 @@ export function JoinForm({ inviteToken }: { inviteToken: string }) {
 
       <div>
         <label htmlFor="join-phone" className="mb-2 block text-[15px] font-semibold">
-          Seu WhatsApp
+          Seu WhatsApp <span className="font-normal text-muted">(opcional)</span>
         </label>
         <input
           id="join-phone"
@@ -72,7 +72,6 @@ export function JoinForm({ inviteToken }: { inviteToken: string }) {
           className={inputClass}
           value={phone}
           maxLength={25}
-          required
           autoComplete="tel"
           placeholder="(11) 98765-4321"
           aria-invalid={!!errors.phone}
@@ -83,7 +82,7 @@ export function JoinForm({ inviteToken }: { inviteToken: string }) {
           <ErrorText id="join-phone-err">{errors.phone}</ErrorText>
         ) : (
           <p id="join-phone-hint" className="mt-2 text-[13px] text-muted">
-            Só o organizador vê, pra te mandar o link.
+            Só o organizador vê. Serve pra ele te mandar o link de novo se você perder.
           </p>
         )}
       </div>

@@ -291,14 +291,13 @@ const requiredWishlist = z
   .min(1, "Conta o que você quer ganhar.")
   .max(LIMITS.wishlist, `Lista até ${LIMITS.wishlist} letras.`);
 
-/** Jogador entra pelo link de convite. Nome, telefone e desejo obrigatórios. */
+/** Jogador entra pelo link de convite. Nome e desejo obrigatórios; telefone opcional. */
 export async function joinGroup(
   inviteToken: string,
-  input: { name: string; phone: string; wishlist: string },
+  input: { name: string; phone?: string; wishlist: string },
 ): Promise<{ token: string }> {
   const name = parse(personName, input?.name);
   const phone = parsePhone(input?.phone);
-  if (!phone) throw new AppError("Coloca seu WhatsApp.");
   const wishlist = parse(requiredWishlist, input?.wishlist);
   if (!looksLikeToken(inviteToken)) throw new AppError("Esse convite não existe.");
 
@@ -317,7 +316,7 @@ export async function joinGroup(
     });
     if (existing.length >= LIMITS.maxPeople)
       throw new AppError(`O grupo já tem ${LIMITS.maxPeople} pessoas.`);
-    if (existing.some((p) => p.phone === phone))
+    if (phone && existing.some((p) => p.phone === phone))
       throw new AppError("Esse telefone já entrou no grupo.");
     const key = name.toLocaleLowerCase("pt-BR");
     if (existing.some((p) => p.name.toLocaleLowerCase("pt-BR") === key))
