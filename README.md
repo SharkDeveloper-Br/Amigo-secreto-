@@ -11,8 +11,9 @@ cada pessoa. Cada um vê só quem tirou e a lista de desejos do amigo.
 
 | Página | Quem usa | O que faz |
 |---|---|---|
-| `/` | organizador | cria o grupo com os nomes |
-| `/g/[token]` | organizador | regras, sortear, links de cada pessoa |
+| `/` | organizador | cria o grupo (nomes são opcionais) |
+| `/g/[token]` | organizador | link de convite, regras, sortear, links de cada pessoa |
+| `/c/[token]` | jogador | entra no grupo com nome, WhatsApp e o que quer ganhar (tudo obrigatório) |
 | `/p/[token]` | participante | abre o presente, vê o amigo e a lista, escreve a própria lista |
 
 O organizador não vê quem tirou quem. Mas ele tem os links de todos,

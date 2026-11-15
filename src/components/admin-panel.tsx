@@ -13,6 +13,7 @@ import {
   Shuffle,
   Trash2,
   Undo2,
+  UserPlus,
   X,
 } from "lucide-react";
 import {
@@ -25,6 +26,7 @@ import {
   updatePhoneAction,
   type ActionResult,
 } from "@/app/actions";
+import { useRouter } from "next/navigation";
 import type { AdminView } from "@/lib/groups";
 import { formatPhone } from "@/lib/phone";
 import { Button, Card, ErrorText, SectionTitle, inputClass } from "./ui";
@@ -75,6 +77,16 @@ export function AdminPanel({ adminToken, view }: { adminToken: string; view: Adm
   }, [toast]);
 
   const linkFor = (token: string) => `${origin}/p/${token}`;
+  const router = useRouter();
+
+  // antes do sorteio, atualiza a lista sozinho pra ver quem entrou pelo convite
+  useEffect(() => {
+    if (view.drawn) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [view.drawn, router]);
 
   async function copy(text: string) {
     try {
@@ -100,6 +112,10 @@ export function AdminPanel({ adminToken, view }: { adminToken: string; view: Adm
         </p>
       </div>
 
+      {!view.drawn && (
+        <InviteCard link={`${origin}/c/${view.inviteToken}`} groupName={view.name} onCopy={copy} />
+      )}
+
       <DrawCard adminToken={adminToken} view={view} />
 
       <Card>
@@ -109,7 +125,12 @@ export function AdminPanel({ adminToken, view }: { adminToken: string; view: Adm
             ? "Mande o link de cada um. Ele mostra quem a pessoa tirou."
             : "Já dá pra mandar os links: cada um escreve sua lista de desejos."}
         </p>
-        <ul className="mt-4 flex flex-col gap-3">
+        {view.participants.length === 0 && (
+          <p className="mt-4 rounded-[10px] border border-dashed border-border p-4 text-center text-[15px] text-muted">
+            Ninguém entrou ainda. Manda o link de convite!
+          </p>
+        )}
+        <ul className="mt-4 flex flex-col gap-3 empty:hidden">
           {view.participants.map((p) => (
             <GiftTag
               key={p.id}
@@ -131,6 +152,50 @@ export function AdminPanel({ adminToken, view }: { adminToken: string; view: Adm
 
       <Toast message={toast} />
     </div>
+  );
+}
+
+function InviteCard({
+  link,
+  groupName,
+  onCopy,
+}: {
+  link: string;
+  groupName: string;
+  onCopy: (t: string) => void;
+}) {
+  const message = `Bora participar do amigo secreto "${groupName}"? 🎁 Entra aqui, coloca seu nome, WhatsApp e o que quer ganhar: ${link}`;
+  return (
+    <Card className="border-gold">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold-text">
+          <UserPlus className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <SectionTitle>Link de convite</SectionTitle>
+          <p className="mt-1 text-[15px] text-muted">
+            Manda no grupo da família ou dos amigos. Cada um entra com nome, WhatsApp e o que quer
+            ganhar.
+          </p>
+        </div>
+      </div>
+      <p className="mt-4 truncate rounded-[10px] border border-border bg-bg px-3 py-2 text-[13px] tabular-nums text-muted">
+        {link}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button onClick={() => onCopy(link)}>
+          <Copy className="size-4" aria-hidden /> Copiar convite
+        </Button>
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-secondary px-4 text-[15px] font-semibold text-on-secondary hover:opacity-90"
+        >
+          <MessageCircle className="size-4" aria-hidden /> Mandar no WhatsApp
+        </a>
+      </div>
+    </Card>
   );
 }
 

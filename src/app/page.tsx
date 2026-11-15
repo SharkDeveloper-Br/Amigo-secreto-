@@ -2,9 +2,9 @@ import { Gift, Link2, ListChecks } from "lucide-react";
 import { CreateGroupForm } from "@/components/create-group-form";
 
 const steps = [
-  { icon: ListChecks, text: "Põe os nomes e as regras" },
+  { icon: ListChecks, text: "Manda o convite, cada um se cadastra" },
   { icon: Gift, text: "Sorteia com um clique" },
-  { icon: Link2, text: "Manda o link secreto de cada um" },
+  { icon: Link2, text: "Cada um vê quem tirou no seu link" },
 ];
 
 export default function Home() {

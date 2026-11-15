@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Hourglass } from "lucide-react";
 import { RevealGift } from "@/components/reveal-gift";
+import { SaveLinkBanner } from "@/components/save-link-banner";
 import { Card, SectionTitle } from "@/components/ui";
 import { WishlistForm } from "@/components/wishlist-form";
 import { getParticipantView } from "@/lib/groups";
@@ -12,8 +13,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-async function Participant({ params }: { params: Promise<{ token: string }> }) {
+async function Participant({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { token } = await params;
+  const isNew = (await searchParams).novo === "1";
   const v = await getParticipantView(token);
   if (!v) notFound();
 
@@ -27,6 +35,8 @@ async function Participant({ params }: { params: Promise<{ token: string }> }) {
           Oi, {v.name}!
         </h1>
       </div>
+
+      {isNew && <SaveLinkBanner />}
 
       {v.friend ? (
         <RevealGift friendName={v.friend.name}>
@@ -45,7 +55,7 @@ async function Participant({ params }: { params: Promise<{ token: string }> }) {
         <Card>
           <div className="flex items-start gap-3">
             <Hourglass className="mt-1 size-5 shrink-0 text-gold-text" aria-hidden />
-            <p>O sorteio ainda não rolou. Aproveita e escreve sua lista de desejos!</p>
+            <p>O sorteio ainda não rolou. Quando rolar, volta neste link pra ver quem você tirou. Enquanto isso, pode mexer na sua lista de desejos.</p>
           </div>
         </Card>
       )}
@@ -60,7 +70,7 @@ async function Participant({ params }: { params: Promise<{ token: string }> }) {
 export default function Page(props: PageProps<"/p/[token]">) {
   return (
     <Suspense fallback={<p className="text-muted">Carregando…</p>}>
-      <Participant params={props.params} />
+      <Participant params={props.params} searchParams={props.searchParams} />
     </Suspense>
   );
 }

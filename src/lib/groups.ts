@@ -86,8 +86,6 @@ export async function createGroup(input: { name: string; participants: NewPerson
       ? { name: parse(personName, p), phone: null }
       : { name: parse(personName, p?.name), phone: parsePhone(p?.phone) },
   );
-  if (people.length < LIMITS.minPeople)
-    throw new AppError(`Precisa de pelo menos ${LIMITS.minPeople} pessoas.`);
   if (people.length > LIMITS.maxPeople)
     throw new AppError(`Máximo de ${LIMITS.maxPeople} pessoas.`);
   assertUniqueNames(people.map((p) => p.name));
@@ -97,6 +95,7 @@ export async function createGroup(input: { name: string; participants: NewPerson
     data: {
       name,
       adminToken,
+      inviteToken: newToken(),
       participants: {
         create: people.map((p) => ({ name: p.name, phone: p.phone, token: newToken() })),
       },
@@ -110,6 +109,7 @@ export async function createGroup(input: { name: string; participants: NewPerson
 export type AdminView = {
   name: string;
   drawn: boolean;
+  inviteToken: string;
   participants: { id: string; name: string; token: string; phone: string | null }[];
   exclusions: {
     id: string;
@@ -125,8 +125,10 @@ export async function getAdminView(adminToken: string): Promise<AdminView | null
   const g = await db.group.findUnique({
     where: { adminToken },
     select: {
+      id: true,
       name: true,
       drawnAt: true,
+      inviteToken: true,
       participants: {
         select: { id: true, name: true, token: true, phone: true },
         orderBy: { createdAt: "asc" },
@@ -144,9 +146,16 @@ export async function getAdminView(adminToken: string): Promise<AdminView | null
     },
   });
   if (!g) return null;
+  let inviteToken = g.inviteToken;
+  if (!inviteToken) {
+    // grupos antigos: cria convite na primeira visita
+    inviteToken = newToken();
+    await db.group.update({ where: { id: g.id }, data: { inviteToken } });
+  }
   return {
     name: g.name,
     drawn: g.drawnAt !== null,
+    inviteToken,
     participants: g.participants,
     exclusions: g.exclusions.map((e) => ({
       id: e.id,
@@ -260,6 +269,63 @@ export async function resetDraw(adminToken: string) {
     db.participant.updateMany({ where: { groupId: g.id }, data: { assignedToId: null } }),
     db.group.update({ where: { id: g.id }, data: { drawnAt: null } }),
   ]);
+}
+
+// ---------- convite ----------
+
+export type InviteView = { groupName: string; drawn: boolean; count: number };
+
+export async function getInviteView(inviteToken: string): Promise<InviteView | null> {
+  if (!looksLikeToken(inviteToken)) return null;
+  const g = await db.group.findUnique({
+    where: { inviteToken },
+    select: { name: true, drawnAt: true, _count: { select: { participants: true } } },
+  });
+  if (!g) return null;
+  return { groupName: g.name, drawn: g.drawnAt !== null, count: g._count.participants };
+}
+
+const requiredWishlist = z
+  .string()
+  .trim()
+  .min(1, "Conta o que você quer ganhar.")
+  .max(LIMITS.wishlist, `Lista até ${LIMITS.wishlist} letras.`);
+
+/** Jogador entra pelo link de convite. Nome, telefone e desejo obrigatórios. */
+export async function joinGroup(
+  inviteToken: string,
+  input: { name: string; phone: string; wishlist: string },
+): Promise<{ token: string }> {
+  const name = parse(personName, input?.name);
+  const phone = parsePhone(input?.phone);
+  if (!phone) throw new AppError("Coloca seu WhatsApp.");
+  const wishlist = parse(requiredWishlist, input?.wishlist);
+  if (!looksLikeToken(inviteToken)) throw new AppError("Esse convite não existe.");
+
+  const token = newToken();
+  await db.$transaction(async (tx) => {
+    const g = await tx.group.findUnique({ where: { inviteToken }, select: { id: true } });
+    if (!g) throw new AppError("Esse convite não existe.");
+    // trava o grupo: evita entrar durante o sorteio e nomes repetidos ao mesmo tempo
+    const [locked] = await tx.$queryRaw<{ drawnAt: Date | null }[]>`
+      SELECT "drawnAt" FROM "Group" WHERE id = ${g.id} FOR UPDATE`;
+    if (locked.drawnAt) throw new AppError("O sorteio já foi feito. Fala com o organizador.");
+
+    const existing = await tx.participant.findMany({
+      where: { groupId: g.id },
+      select: { name: true, phone: true },
+    });
+    if (existing.length >= LIMITS.maxPeople)
+      throw new AppError(`O grupo já tem ${LIMITS.maxPeople} pessoas.`);
+    if (existing.some((p) => p.phone === phone))
+      throw new AppError("Esse telefone já entrou no grupo.");
+    const key = name.toLocaleLowerCase("pt-BR");
+    if (existing.some((p) => p.name.toLocaleLowerCase("pt-BR") === key))
+      throw new AppError(`Já tem alguém chamado "${name}". Coloca o sobrenome.`);
+
+    await tx.participant.create({ data: { groupId: g.id, name, phone, wishlist, token } });
+  });
+  return { token };
 }
 
 // ---------- participante ----------

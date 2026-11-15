@@ -16,6 +16,7 @@ model Group {
   id           String        @id @default(cuid())
   name         String
   adminToken   String        @unique
+  inviteToken  String?       @unique
   drawnAt      DateTime?
   createdAt    DateTime      @default(now())
   participants Participant[]

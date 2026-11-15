@@ -59,8 +59,6 @@ export function CreateGroupForm() {
     });
   }
 
-  const missing = Math.max(0, 3 - people.length);
-
   return (
     <Card>
       <form
@@ -86,7 +84,9 @@ export function CreateGroupForm() {
         </div>
 
         <fieldset>
-          <legend className="mb-2 block text-[15px] font-semibold">Quem vai participar?</legend>
+          <legend className="mb-2 block text-[15px] font-semibold">
+            Quem vai participar? (opcional)
+          </legend>
           <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <div className="col-span-2 sm:col-span-1">
               <label htmlFor="person" className="sr-only">
@@ -128,10 +128,9 @@ export function CreateGroupForm() {
             </Button>
           </div>
           <p id="person-hint" className="mt-2 text-[13px] text-muted">
-            Telefone é opcional: serve pra mandar o link direto no WhatsApp.{" "}
-            {missing > 0
-              ? `Faltam ${missing} ${missing === 1 ? "pessoa" : "pessoas"} (mínimo 3).`
-              : `${people.length} pessoas na lista.`}
+            Pode pular: depois você manda um link de convite e cada um se cadastra sozinho.
+            {people.length > 0 &&
+              ` ${people.length} ${people.length === 1 ? "pessoa" : "pessoas"} na lista.`}
           </p>
 
           {people.length > 0 && (
@@ -164,7 +163,7 @@ export function CreateGroupForm() {
 
         <ErrorText>{error}</ErrorText>
 
-        <Button type="submit" loading={pending} disabled={missing > 0 || !name.trim()}>
+        <Button type="submit" loading={pending} disabled={!name.trim()}>
           Criar grupo
         </Button>
       </form>

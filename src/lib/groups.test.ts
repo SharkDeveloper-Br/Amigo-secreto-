@@ -6,7 +6,9 @@ import {
   AppError,
   createGroup,
   getAdminView,
+  getInviteView,
   getParticipantView,
+  joinGroup,
   removeExclusion,
   removeParticipant,
   resetDraw,
@@ -46,10 +48,11 @@ describe("createGroup", () => {
     ).rejects.toThrow(AppError);
   });
 
-  it("precisa de 3 pessoas", async () => {
-    await expect(createGroup({ name: "X", participants: ["Ana", "Bruno"] })).rejects.toThrow(
-      AppError,
-    );
+  it("pode criar sem ninguém (convite depois)", async () => {
+    const { adminToken } = await createGroup({ name: "X", participants: [] });
+    const v = (await getAdminView(adminToken))!;
+    expect(v.participants).toHaveLength(0);
+    await expect(runDraw(adminToken)).rejects.toThrow(/3 pessoas/);
   });
 
   it("recusa nome de grupo vazio", async () => {
@@ -243,5 +246,68 @@ describe("telefone", () => {
       const json = JSON.stringify(await getParticipantView(p.token));
       expect(json).not.toMatch(/9876|1111|3333|phone/);
     }
+  });
+});
+
+describe("convite", () => {
+  const dados = { name: "Fábio", phone: "(11) 98765-4321", wishlist: "Um livro" };
+
+  it("admin tem link de convite", async () => {
+    const { view } = await novoGrupo();
+    expect(view.inviteToken).toHaveLength(32);
+  });
+
+  it("convite mostra nome do grupo e quantos entraram", async () => {
+    const { view } = await novoGrupo();
+    expect(await getInviteView(view.inviteToken)).toEqual({
+      groupName: "Família",
+      drawn: false,
+      count: 4,
+    });
+    expect(await getInviteView("q".repeat(32))).toBeNull();
+  });
+
+  it("jogador entra com nome, telefone e desejo", async () => {
+    const { adminToken, view } = await novoGrupo();
+    const { token } = await joinGroup(view.inviteToken, dados);
+    const me = (await getParticipantView(token))!;
+    expect(me).toMatchObject({ name: "Fábio", wishlist: "Um livro", groupName: "Família" });
+    const admin = (await getAdminView(adminToken))!;
+    expect(admin.participants.find((p) => p.name === "Fábio")!.phone).toBe("5511987654321");
+  });
+
+  it("tudo é obrigatório", async () => {
+    const { view } = await novoGrupo();
+    for (const faltando of [
+      { ...dados, name: " " },
+      { ...dados, phone: "" },
+      { ...dados, wishlist: "  " },
+      { ...dados, phone: "123" },
+    ]) {
+      await expect(joinGroup(view.inviteToken, faltando)).rejects.toThrow(AppError);
+    }
+    expect((await getInviteView(view.inviteToken))!.count).toBe(4);
+  });
+
+  it("não entra com nome ou telefone repetido", async () => {
+    const { view } = await novoGrupo();
+    await joinGroup(view.inviteToken, dados);
+    await expect(joinGroup(view.inviteToken, { ...dados, phone: "11 90000-0000" })).rejects.toThrow(
+      /já tem alguém/i,
+    );
+    await expect(
+      joinGroup(view.inviteToken, { ...dados, name: "Outro", phone: "11987654321" }),
+    ).rejects.toThrow(/telefone/i);
+  });
+
+  it("depois do sorteio não entra mais", async () => {
+    const { adminToken, view } = await novoGrupo();
+    await runDraw(adminToken);
+    expect((await getInviteView(view.inviteToken))!.drawn).toBe(true);
+    await expect(joinGroup(view.inviteToken, dados)).rejects.toThrow(/sorteio/i);
+  });
+
+  it("convite errado", async () => {
+    await expect(joinGroup("q".repeat(32), dados)).rejects.toThrow(AppError);
   });
 });

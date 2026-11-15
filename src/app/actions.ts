@@ -92,3 +92,19 @@ export async function updateWishlistAction(token: string, text: string) {
   if (r.ok) refresh();
   return r;
 }
+
+export async function joinGroupAction(
+  inviteToken: string,
+  input: { name: string; phone: string; wishlist: string },
+): Promise<ActionResult> {
+  let token = "";
+  const r = await run(async () => {
+    ({ token } = await groups.joinGroup(str(inviteToken), {
+      name: str(input?.name),
+      phone: str(input?.phone),
+      wishlist: str(input?.wishlist),
+    }));
+  });
+  if (!r.ok) return r;
+  redirect(`/p/${token}?novo=1`);
+}
