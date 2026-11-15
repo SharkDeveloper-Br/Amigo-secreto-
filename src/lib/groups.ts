@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "./db";
 import { draw, ImpossibleDrawError, NotEnoughPeopleError } from "./draw";
+import { InvalidPhoneError, normalizePhone } from "./phone";
 import { looksLikeToken, newToken } from "./token";
 
 /** Erro com mensagem que pode ir pra tela. */
@@ -46,6 +47,19 @@ function assertUniqueNames(names: string[]) {
   }
 }
 
+function parsePhone(raw: unknown): string | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") throw new AppError("Telefone inválido.");
+  try {
+    return normalizePhone(raw);
+  } catch (e) {
+    if (e instanceof InvalidPhoneError) throw new AppError(e.message);
+    throw e;
+  }
+}
+
+export type NewPerson = string | { name: string; phone?: string | null };
+
 async function findGroup(adminToken: string) {
   if (!looksLikeToken(adminToken)) return null;
   return db.group.findUnique({ where: { adminToken } });
@@ -65,21 +79,27 @@ async function requireOpenGroup(adminToken: string) {
 
 // ---------- criar ----------
 
-export async function createGroup(input: { name: string; participants: string[] }) {
+export async function createGroup(input: { name: string; participants: NewPerson[] }) {
   const name = parse(groupName, input.name);
-  const people = input.participants.map((p) => parse(personName, p));
+  const people = input.participants.map((p) =>
+    typeof p === "string"
+      ? { name: parse(personName, p), phone: null }
+      : { name: parse(personName, p?.name), phone: parsePhone(p?.phone) },
+  );
   if (people.length < LIMITS.minPeople)
     throw new AppError(`Precisa de pelo menos ${LIMITS.minPeople} pessoas.`);
   if (people.length > LIMITS.maxPeople)
     throw new AppError(`Máximo de ${LIMITS.maxPeople} pessoas.`);
-  assertUniqueNames(people);
+  assertUniqueNames(people.map((p) => p.name));
 
   const adminToken = newToken();
   await db.group.create({
     data: {
       name,
       adminToken,
-      participants: { create: people.map((p) => ({ name: p, token: newToken() })) },
+      participants: {
+        create: people.map((p) => ({ name: p.name, phone: p.phone, token: newToken() })),
+      },
     },
   });
   return { adminToken };
@@ -90,7 +110,7 @@ export async function createGroup(input: { name: string; participants: string[] 
 export type AdminView = {
   name: string;
   drawn: boolean;
-  participants: { id: string; name: string; token: string }[];
+  participants: { id: string; name: string; token: string; phone: string | null }[];
   exclusions: {
     id: string;
     giverId: string;
@@ -108,7 +128,7 @@ export async function getAdminView(adminToken: string): Promise<AdminView | null
       name: true,
       drawnAt: true,
       participants: {
-        select: { id: true, name: true, token: true },
+        select: { id: true, name: true, token: true, phone: true },
         orderBy: { createdAt: "asc" },
       },
       exclusions: {
@@ -138,9 +158,10 @@ export async function getAdminView(adminToken: string): Promise<AdminView | null
   };
 }
 
-export async function addParticipant(adminToken: string, rawName: string) {
+export async function addParticipant(adminToken: string, rawName: string, rawPhone?: string) {
   const g = await requireOpenGroup(adminToken);
   const name = parse(personName, rawName);
+  const phone = parsePhone(rawPhone);
   const existing = await db.participant.findMany({
     where: { groupId: g.id },
     select: { name: true },
@@ -148,7 +169,22 @@ export async function addParticipant(adminToken: string, rawName: string) {
   if (existing.length >= LIMITS.maxPeople)
     throw new AppError(`Máximo de ${LIMITS.maxPeople} pessoas.`);
   assertUniqueNames([...existing.map((p) => p.name), name]);
-  await db.participant.create({ data: { groupId: g.id, name, token: newToken() } });
+  await db.participant.create({ data: { groupId: g.id, name, phone, token: newToken() } });
+}
+
+/** Telefone pode mudar a qualquer hora (não afeta o sorteio). */
+export async function updateParticipantPhone(
+  adminToken: string,
+  participantId: string,
+  rawPhone: string,
+) {
+  const g = await requireGroup(adminToken);
+  const phone = parsePhone(rawPhone);
+  const r = await db.participant.updateMany({
+    where: { id: participantId, groupId: g.id },
+    data: { phone },
+  });
+  if (r.count === 0) throw new AppError("Pessoa não encontrada.");
 }
 
 export async function removeParticipant(adminToken: string, participantId: string) {

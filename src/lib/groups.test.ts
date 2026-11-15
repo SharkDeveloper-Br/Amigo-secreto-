@@ -11,6 +11,7 @@ import {
   removeParticipant,
   resetDraw,
   runDraw,
+  updateParticipantPhone,
   updateWishlist,
 } from "./groups";
 
@@ -177,5 +178,70 @@ describe("participante", () => {
   it("token inválido → null / erro", async () => {
     expect(await getParticipantView("y".repeat(32))).toBeNull();
     await expect(updateWishlist("y".repeat(32), "oi")).rejects.toThrow(AppError);
+  });
+});
+
+describe("telefone", () => {
+  it("salva telefone normalizado ao criar", async () => {
+    const { adminToken } = await createGroup({
+      name: "Fone",
+      participants: [
+        { name: "Ana", phone: "(11) 98765-4321" },
+        { name: "Bruno", phone: "" },
+        "Carla",
+      ],
+    });
+    const v = (await getAdminView(adminToken))!;
+    const phones = Object.fromEntries(v.participants.map((p) => [p.name, p.phone]));
+    expect(phones).toEqual({ Ana: "5511987654321", Bruno: null, Carla: null });
+  });
+
+  it("telefone inválido → erro", async () => {
+    await expect(
+      createGroup({ name: "X", participants: [{ name: "Ana", phone: "123" }, "Bruno", "Carla"] }),
+    ).rejects.toThrow(AppError);
+  });
+
+  it("adiciona pessoa com telefone", async () => {
+    const { adminToken } = await novoGrupo();
+    await addParticipant(adminToken, "Eva", "21 99999-8888");
+    const v = (await getAdminView(adminToken))!;
+    expect(v.participants.find((p) => p.name === "Eva")!.phone).toBe("5521999998888");
+  });
+
+  it("muda telefone mesmo depois do sorteio e pode apagar", async () => {
+    const { adminToken, byName } = await novoGrupo();
+    await runDraw(adminToken);
+    await updateParticipantPhone(adminToken, byName.Ana.id, "11 98765-4321");
+    let v = (await getAdminView(adminToken))!;
+    expect(v.participants.find((p) => p.name === "Ana")!.phone).toBe("5511987654321");
+    await updateParticipantPhone(adminToken, byName.Ana.id, "");
+    v = (await getAdminView(adminToken))!;
+    expect(v.participants.find((p) => p.name === "Ana")!.phone).toBeNull();
+  });
+
+  it("não muda telefone de outro grupo", async () => {
+    const a = await novoGrupo();
+    const b = await novoGrupo(["X", "Y", "Z"]);
+    await expect(
+      updateParticipantPhone(a.adminToken, b.byName.X.id, "11 98765-4321"),
+    ).rejects.toThrow(AppError);
+  });
+
+  it("participante não vê telefones", async () => {
+    const { adminToken } = await createGroup({
+      name: "Fone",
+      participants: [
+        { name: "Ana", phone: "11 98765-4321" },
+        { name: "Bruno", phone: "11 91111-2222" },
+        { name: "Carla", phone: "11 93333-4444" },
+      ],
+    });
+    await runDraw(adminToken);
+    const v = (await getAdminView(adminToken))!;
+    for (const p of v.participants) {
+      const json = JSON.stringify(await getParticipantView(p.token));
+      expect(json).not.toMatch(/9876|1111|3333|phone/);
+    }
   });
 });

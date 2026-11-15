@@ -29,6 +29,7 @@ model Participant {
   name          String
   token         String        @unique
   wishlist      String        @default("")
+  phone         String?
   assignedToId  String?
   assignedTo    Participant?  @relation("Assignment", fields: [assignedToId], references: [id], onDelete: SetNull)
   assignedBy    Participant[] @relation("Assignment")

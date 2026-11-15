@@ -21,21 +21,31 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 export async function createGroupAction(
   name: string,
-  participants: string[],
+  participants: { name: string; phone: string }[],
 ): Promise<ActionResult> {
   let adminToken = "";
   const r = await run(async () => {
     ({ adminToken } = await groups.createGroup({
       name: str(name),
-      participants: Array.isArray(participants) ? participants.map(str) : [],
+      participants: Array.isArray(participants)
+        ? participants.map((p) => ({ name: str(p?.name), phone: str(p?.phone) }))
+        : [],
     }));
   });
   if (!r.ok) return r;
   redirect(`/g/${adminToken}`);
 }
 
-export async function addParticipantAction(adminToken: string, name: string) {
-  const r = await run(() => groups.addParticipant(str(adminToken), str(name)));
+export async function addParticipantAction(adminToken: string, name: string, phone: string) {
+  const r = await run(() => groups.addParticipant(str(adminToken), str(name), str(phone)));
+  if (r.ok) refresh();
+  return r;
+}
+
+export async function updatePhoneAction(adminToken: string, participantId: string, phone: string) {
+  const r = await run(() =>
+    groups.updateParticipantPhone(str(adminToken), str(participantId), str(phone)),
+  );
   if (r.ok) refresh();
   return r;
 }

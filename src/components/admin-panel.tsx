@@ -7,6 +7,8 @@ import {
   Copy,
   Lock,
   MessageCircle,
+  Pencil,
+  Phone,
   Plus,
   Shuffle,
   Trash2,
@@ -20,9 +22,11 @@ import {
   removeExclusionAction,
   removeParticipantAction,
   resetDrawAction,
+  updatePhoneAction,
   type ActionResult,
 } from "@/app/actions";
 import type { AdminView } from "@/lib/groups";
+import { formatPhone } from "@/lib/phone";
 import { Button, Card, ErrorText, SectionTitle, inputClass } from "./ui";
 
 function useAction() {
@@ -110,6 +114,7 @@ export function AdminPanel({ adminToken, view }: { adminToken: string; view: Adm
             <GiftTag
               key={p.id}
               name={p.name}
+              phone={p.phone}
               link={linkFor(p.token)}
               canRemove={!view.drawn}
               onCopy={copy}
@@ -195,6 +200,7 @@ function DrawCard({ adminToken, view }: { adminToken: string; view: AdminView })
 
 function GiftTag({
   name,
+  phone,
   link,
   canRemove,
   onCopy,
@@ -203,6 +209,7 @@ function GiftTag({
   groupName,
 }: {
   name: string;
+  phone: string | null;
   link: string;
   canRemove: boolean;
   onCopy: (t: string) => void;
@@ -211,16 +218,36 @@ function GiftTag({
   groupName: string;
 }) {
   const remove = useAction();
+  const save = useAction();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(phone ? formatPhone(phone) : "");
   const message = `Oi, ${name}! Seu link do amigo secreto "${groupName}" 🎁 (não mostra pra ninguém): ${link}`;
+  const waHref = `https://wa.me/${phone ?? ""}?text=${encodeURIComponent(message)}`;
+  const inputId = `phone-${participantId}`;
+
   return (
     <li className="relative rounded-xl border border-border bg-bg p-3 pl-10">
       {/* furinho + fita da etiqueta */}
       <span
         aria-hidden
-        className="absolute left-3 top-1/2 size-3 -translate-y-1/2 rounded-full border-2 border-gold bg-surface"
+        className="absolute left-3 top-6 size-3 rounded-full border-2 border-gold bg-surface"
       />
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex-1 font-semibold">{name}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{name}</p>
+          {!editing && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="inline-flex min-h-8 items-center gap-1 text-[13px] tabular-nums text-muted hover:text-text"
+              aria-label={phone ? `Editar telefone de ${name}` : `Adicionar telefone de ${name}`}
+            >
+              <Phone className="size-3" aria-hidden />
+              {phone ? formatPhone(phone) : "Adicionar telefone"}
+              <Pencil className="size-3" aria-hidden />
+            </button>
+          )}
+        </div>
         <Button
           variant="ghost"
           className="px-3"
@@ -230,11 +257,15 @@ function GiftTag({
           <Copy className="size-4" aria-hidden /> <span className="hidden sm:inline">Copiar</span>
         </Button>
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(message)}`}
+          href={waHref}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold text-secondary hover:bg-border/50"
-          aria-label={`Enviar link de ${name} no WhatsApp`}
+          aria-label={
+            phone
+              ? `Enviar link pro WhatsApp de ${name}`
+              : `Enviar link de ${name} no WhatsApp (escolher contato)`
+          }
         >
           <MessageCircle className="size-4" aria-hidden />
           <span className="hidden sm:inline">WhatsApp</span>
@@ -251,13 +282,57 @@ function GiftTag({
           </Button>
         )}
       </div>
-      <ErrorText>{remove.error}</ErrorText>
+
+      {editing && (
+        <form
+          className="mt-2 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save.exec(
+              () => updatePhoneAction(adminToken, participantId, draft),
+              () => setEditing(false),
+            );
+          }}
+        >
+          <label htmlFor={inputId} className="sr-only">
+            Telefone de {name}
+          </label>
+          <input
+            id={inputId}
+            type="tel"
+            inputMode="tel"
+            className={inputClass}
+            value={draft}
+            maxLength={25}
+            placeholder="(11) 98765-4321"
+            onChange={(e) => setDraft(e.target.value)}
+            autoFocus
+          />
+          <Button type="submit" variant="secondary" loading={save.pending}>
+            Salvar
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="px-3"
+            onClick={() => {
+              setEditing(false);
+              setDraft(phone ? formatPhone(phone) : "");
+            }}
+            aria-label="Cancelar"
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        </form>
+      )}
+      <ErrorText>{remove.error ?? save.error}</ErrorText>
     </li>
   );
 }
 
 function AddParticipant({ adminToken }: { adminToken: string }) {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const a = useAction();
   return (
     <form
@@ -266,24 +341,46 @@ function AddParticipant({ adminToken }: { adminToken: string }) {
         e.preventDefault();
         if (!name.trim()) return;
         a.exec(
-          () => addParticipantAction(adminToken, name),
-          () => setName(""),
+          () => addParticipantAction(adminToken, name, phone),
+          () => {
+            setName("");
+            setPhone("");
+          },
         );
       }}
     >
-      <label htmlFor="new-person" className="mb-2 block text-[15px] font-semibold">
-        Adicionar pessoa
-      </label>
-      <div className="flex gap-2">
-        <input
-          id="new-person"
-          className={inputClass}
-          value={name}
-          maxLength={40}
-          placeholder="Nome"
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="off"
-        />
+      <p className="mb-2 block text-[15px] font-semibold">Adicionar pessoa</p>
+      <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <div className="col-span-2 sm:col-span-1">
+          <label htmlFor="new-person" className="sr-only">
+            Nome
+          </label>
+          <input
+            id="new-person"
+            className={inputClass}
+            value={name}
+            maxLength={40}
+            placeholder="Nome"
+            onChange={(e) => setName(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <div>
+          <label htmlFor="new-phone" className="sr-only">
+            Telefone (WhatsApp)
+          </label>
+          <input
+            id="new-phone"
+            type="tel"
+            inputMode="tel"
+            className={inputClass}
+            value={phone}
+            maxLength={25}
+            placeholder="WhatsApp (opcional)"
+            onChange={(e) => setPhone(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
         <Button type="submit" variant="secondary" loading={a.pending} aria-label="Adicionar">
           <Plus className="size-5" aria-hidden />
         </Button>
